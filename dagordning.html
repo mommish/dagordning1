@@ -1,0 +1,253 @@
+<html>
+<div id="header">
+  <h2>Dagordningslista</h2>
+  <div id="inputs">
+    <input type="text" id="add-task-input" placeholder="Uppgift...">
+    <span id="add-task-button">Ok</span>
+  </div>
+</div>
+
+<ul id="task-list"></ul>
+</html>
+<style>
+/* GENERAL */
+
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  max-width: 100vw;
+}
+
+/* HEADER */
+
+#header {
+  background-color: #800080;
+  padding: 1em;
+  color: white;
+  text-align: center;
+}
+
+#header h2 {
+  margin-bottom: 0.5em;
+}
+
+#inputs {
+  display: grid;
+  grid-template-columns: 4fr 1fr;
+}
+
+#add-task-input {
+  border: none;
+  border-radius: 0;
+  padding: 10px;
+  font-size: 1em;
+}
+
+#add-task-button {
+  padding: 10px;
+  background: rgb(217, 217, 217);
+  color: rgb(85, 85, 85);
+  text-align: center;
+  font-size: 1em;
+  cursor: pointer;
+  transition: 0.3s;
+  border-radius: 0;
+}
+
+#add-task-button:hover {
+  background-color: rgb(187, 187, 187);
+}
+
+/* LIST ITEMS */
+
+ul {
+  list-style: none;
+}
+
+ul li {
+  cursor: pointer;
+  background: rgb(237, 237, 237);
+  font-size: 18px;
+  transition: 0.2s;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  
+  /* make the list items unselectable */
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Set all odd list items to a different color (zebra-stripes) */
+ul li:nth-child(odd) {
+  background: rgb(249, 249, 249);
+}
+
+/* Darker background-color on hover */
+ul li:hover {
+  background: rgb(221, 221, 221);
+}
+
+/* TASK TEXT */
+
+.task-text {
+  display: flex;
+  align-items: center;
+  padding: .5em 1em;
+}
+
+/* When clicked on, add a background color and strike out text */
+.task-text.checked {
+  background: rgb(136, 136, 136);
+  color: rgb(255, 255, 255);
+  text-decoration: line-through;
+}
+
+.task-text.checked::before {
+  content: "";
+  border-color: #fff;
+  border-style: solid;
+  border-width: 0 2px 2px 0;
+  margin-right: 1em;
+  transform: rotate(45deg);
+  height: 1em;
+  width: 0.5em;
+}
+
+/* CLOSE BUTTONS */
+
+.close {
+  --size: 50px;
+  height: var(--size);
+  width: var(--size);
+  display: grid;
+  place-items: center;
+}
+
+.close:hover {
+  background-color: rgb(244, 67, 54);
+  color: white;
+}
+</style>
+<script>const addTaskInput = document.getElementById("add-task-input"),
+  addTaskButton = document.getElementById("add-task-button"),
+  taskList = document.getElementById("task-list");
+
+document.addEventListener("DOMContentLoaded", () => {
+  const savedTasks = getTasks();
+  Object.values(savedTasks).forEach(({ timestamp, text, done }) => {
+    createListItem(timestamp, text, done);
+  });
+});
+addTaskButton.addEventListener("click", handleInput);
+addTaskInput.addEventListener("keyup", e => {
+  if (e.key !== "Enter") return;
+  handleInput();
+});
+
+
+// ===== ===== ===== ===== =====
+// Local storage logic
+// ===== ===== ===== ===== =====
+
+// task: object in local storage like { timestamp: 1686166816, text: "take out trash", done: false }
+// taskElement: LI element
+
+function getTasks() {
+  const stringifiedTasks = localStorage.getItem("tasks");
+  if (!stringifiedTasks) return {};
+  return JSON.parse(stringifiedTasks);
+}
+
+function addTask(timestamp, text, done = false) {
+  const savedTasks = getTasks();
+  const newTask = { timestamp, text, done };
+  savedTasks[timestamp] = newTask;
+  updateTasks(savedTasks);
+}
+
+function updateTask(timestamp, done) {
+  const savedTasks = getTasks();
+  const task = savedTasks[timestamp];
+  task.done = done;
+  updateTasks(savedTasks);
+}
+
+function updateTasks(tasksObject) {
+  const stringifiedTasks = JSON.stringify(tasksObject);
+  localStorage.setItem("tasks", stringifiedTasks);
+}
+
+function deleteTask(timestamp) {
+  const savedTasks = getTasks();
+  delete savedTasks[timestamp];
+  updateTasks(savedTasks);
+}
+
+// ===== ===== ===== ===== =====
+// Element logic
+// ===== ===== ===== ===== =====
+
+function newElement(tag, className = null, clickListener = null) {
+  const element = document.createElement(tag);
+  if (className)
+    element.classList.add(className);
+  if (clickListener)
+    element.addEventListener("click", clickListener.bind(element));
+  return element;
+}
+
+function createListItem(timestamp, text, done = false) {
+  const listItem = newElement("li"),
+    taskTextElement = newElement("span", "task-text", toggleDone),
+    closeButton = newElement("span", "close", removeTaskAndElement);
+  listItem.dataset.timestamp = timestamp;
+  taskTextElement.textContent = text;
+  if (done)
+    taskTextElement.classList.add("checked");
+  closeButton.innerHTML = "&times;";
+  listItem.append(taskTextElement, closeButton);
+  taskList.append(listItem);
+}
+
+// ===== ===== ===== ===== =====
+// Mixed logic
+// ===== ===== ===== ===== =====
+
+function toggleDone() {
+  const done = this.classList.contains("checked"),
+    parent = this.parentElement,
+    timestamp = parent.dataset.timestamp;
+  updateTask(timestamp, !done);
+  this.classList.toggle("checked");
+}
+
+function createTaskAndElement(timestamp, text, done = false) {
+  addTask(timestamp, text, done);
+  createListItem(timestamp, text, done);
+}
+
+function removeTaskAndElement() {
+  const parent = this.parentElement,
+    timestamp = parent.dataset.timestamp;
+  deleteTask(timestamp);
+  parent.remove();
+}
+
+function handleInput() {
+  const text = addTaskInput.value;
+  if (!text) {
+    alert("Du nehöver skriva något!");
+    return;
+  }
+  const timestamp = Date.now();
+  createTaskAndElement(timestamp, text);
+}
+</script>
